@@ -15,6 +15,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
 {
     private readonly TimeCache<List<CustomItemData>> _inventItems;
     private List<ItemFilter> _itemFilters;
+    private bool _isInTown = true;
 
     public InvWithLinq()
     {
@@ -29,6 +30,21 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
         return true;
     }
 
+    public override void AreaChange(AreaInstance area)
+    {
+        if (area.IsHideout ||
+            area.IsTown ||
+            area.DisplayName.Contains("Azurite Mine") ||
+            area.DisplayName.Contains("Tane's Laboratory"))
+        {
+            _isInTown = true;
+        }
+        else
+        {
+            _isInTown = false;
+        }
+    }
+
     public override Job Tick()
     {
         return null;
@@ -38,6 +54,9 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
     {
         var hoveredItem = GetHoveredItem();
         if (!IsInventoryVisible())
+            return;
+        
+        if (!_isInTown && !Settings.RunOutsideTown)
             return;
 
         foreach (var item in GetFilteredItems())
@@ -51,6 +70,8 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
                 Graphics.DrawFrame(item.ClientRectangleCache, Settings.FrameColor, Settings.FrameThickness);
             }
         }
+        
+        PerformItemFilterTest(hoveredItem);
     }
     
     public override void DrawSettings()
@@ -60,8 +81,15 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
         if (ImGui.Button("Open Build Folder"))
         {
             var configDirectory = ConfigDirectory;
+            var customConfigDirectory = !string.IsNullOrEmpty(Settings.CustomConfigDirectory)
+                ? Path.Combine(Path.GetDirectoryName(ConfigDirectory)!, Settings.CustomConfigDirectory)
+                : null;
+            
+            var directoryToOpen = Directory.Exists(customConfigDirectory)
+                ? customConfigDirectory
+                : configDirectory;
 
-            Process.Start("explorer.exe", configDirectory);
+            Process.Start("explorer.exe", directoryToOpen);
         }
 
         ImGui.Separator();
@@ -94,6 +122,8 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
     {
         var inventoryItems = new List<CustomItemData>();
         
+        if (!IsInventoryVisible()) return inventoryItems;
+        
         var inventory = GameController?.Game?.IngameState?.Data?.ServerData?.PlayerInventories[0]?.Inventory;
         var items = inventory?.InventorySlotItems;
         
@@ -125,11 +155,35 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
     {
         return _inventItems.Value.Where(x => _itemFilters.Any(y => y.Matches(x)));
     }
+    
+    private void PerformItemFilterTest(Element hoveredItem)
+    {
+        if (Settings.FilterTest.Value is { Length: > 0 } && hoveredItem != null)
+        {
+            var filter = ItemFilter.LoadFromString(Settings.FilterTest);
+            var matched = filter.Matches(new ItemData(hoveredItem.Entity, GameController));
+            DebugWindow.LogMsg($"{Name}: [Filter Test] Hovered Item: {matched}", 5);
+        }
+    }
 
     private void LoadRules()
     {
         string configDirectory = ConfigDirectory;
         List<InvRule> existingRules = Settings.InvRules;
+
+        if (!string.IsNullOrEmpty(Settings.CustomConfigDirectory))
+        {
+            var customConfigFileDirectory = Path.Combine(Path.GetDirectoryName(ConfigDirectory)!, Settings.CustomConfigDirectory);
+            
+            if (Directory.Exists(customConfigFileDirectory))
+            {
+                configDirectory = customConfigFileDirectory;
+            }
+            else
+            {
+                DebugWindow.LogError( $"{Name}: Custom Config Folder does not exist.", 15);
+            }
+        }
 
         try
         {
@@ -147,7 +201,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
                 }
                 else
                 {
-                    DebugWindow.LogError($"{Name}: File \"{rule.Name}\" cannot be found.");
+                    DebugWindow.LogError($"{Name}: File \"{rule.Name}\" does not exist.", 15);
                 }
             }
 
@@ -160,7 +214,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
         }
         catch (Exception e)
         {
-            DebugWindow.LogError($"{Name}: Filter Load Error.\n{e}");
+            DebugWindow.LogError($"{Name}: Filter Load Error.\n{e}", 15);
         }
     }
 }
