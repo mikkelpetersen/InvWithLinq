@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using ExileCore;
-using ExileCore.PoEMemory;
-using ExileCore.Shared.Cache;
+using ExileCore2;
+using ExileCore2.PoEMemory;
+using ExileCore2.Shared.Cache;
+using ExileCore2.Shared.Helpers;
 using ImGuiNET;
 using ItemFilterLibrary;
 
@@ -32,10 +33,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
 
     public override void AreaChange(AreaInstance area)
     {
-        if (area.IsHideout ||
-            area.IsTown ||
-            area.DisplayName.Contains("Azurite Mine") ||
-            area.DisplayName.Contains("Tane's Laboratory"))
+        if (area.IsHideout || area.IsTown)
         {
             _isInTown = true;
         }
@@ -45,9 +43,9 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
         }
     }
 
-    public override Job Tick()
+    public override void Tick()
     {
-        return null;
+        
     }
 
     public override void Render()
@@ -63,7 +61,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
         {
             if (hoveredItem != null && hoveredItem.Tooltip.GetClientRectCache.Intersects(item.ClientRectangleCache) && hoveredItem.Entity.Address != item.Entity.Address)
             {
-                Graphics.DrawFrame(item.ClientRectangleCache, Settings.FrameColor.Value with { A = 45 }, Settings.FrameThickness);
+                Graphics.DrawFrame(item.ClientRectangleCache, Settings.FrameColor.Value.ToImguiVec4(45).ToColor(), Settings.FrameThickness);
             }
             else
             {

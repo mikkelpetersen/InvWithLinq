@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using ExileCore.Shared.Attributes;
-using ExileCore.Shared.Interfaces;
-using ExileCore.Shared.Nodes;
-using SharpDX;
+using ExileCore2.Shared.Attributes;
+using ExileCore2.Shared.Interfaces;
+using ExileCore2.Shared.Nodes;
+using System.Drawing;
 
 namespace InvWithLinq;
 
