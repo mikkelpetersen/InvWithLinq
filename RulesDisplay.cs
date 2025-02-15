@@ -170,13 +170,6 @@ public class RulesDisplay
         }
     }
 
-
-    private static void SwapRules(int indexA, int indexB)
-    {
-        var rules = Main.Settings.InvRules;
-        (rules[indexA], rules[indexB]) = (rules[indexB], rules[indexA]);
-    }
-
     private static string GetPickitConfigFileDirectory()
     {
         var pickitConfigFileDirectory = Main.ConfigDirectory;
