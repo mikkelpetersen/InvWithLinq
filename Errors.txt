@@ -1,0 +1,5 @@
+Build failed:
+[5/12/2024 8:51:17 pm, D:\Tools\PathOfExileTools\Main Overlay\PoeHelper\Plugins\Source\ExileAPI-InvWithLinq\InvWithLinq.csproj(0, 0)] NU1101: Unable to find package ImGui.NET. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages
+[5/12/2024 8:51:17 pm, D:\Tools\PathOfExileTools\Main Overlay\PoeHelper\Plugins\Source\ExileAPI-InvWithLinq\InvWithLinq.csproj(0, 0)] NU1102: Unable to find package Newtonsoft.Json with version (>= 13.0.3)
+  - Found 1 version(s) in Microsoft Visual Studio Offline Packages [ Nearest version: 13.0.1 ]
+[5/12/2024 8:51:17 pm, D:\Tools\PathOfExileTools\Main Overlay\PoeHelper\Plugins\Source\ExileAPI-InvWithLinq\InvWithLinq.csproj(0, 0)] NU1101: Unable to find package SharpDX.Mathematics. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages

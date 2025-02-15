@@ -17,8 +17,6 @@ public class InvWithLinqSettings : ISettings
     [JsonIgnore]
     public TextNode FilterTest { get; set; } = new TextNode();
     
-    [JsonIgnore]
-    public ButtonNode ReloadFilters { get; set; } = new ButtonNode();
     
     [Menu("Use a Custom \"\\config\\custom_folder\" Folder")]
     public TextNode CustomConfigDirectory { get; set; } = new TextNode();
