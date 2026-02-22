@@ -13,14 +13,13 @@ public class InvWithLinqSettings : ISettings
     public ToggleNode Enable { get; set; } = new ToggleNode(false);
     public ColorNode FrameColor { get; set; } = new ColorNode(Color.Red);
     public RangeNode<int> FrameThickness { get; set; } = new RangeNode<int>(1, 1, 20);
-    
+
     [JsonIgnore]
     public TextNode FilterTest { get; set; } = new TextNode();
-    
-    
+
     [Menu("Use a Custom \"\\config\\custom_folder\" Folder")]
     public TextNode CustomConfigDirectory { get; set; } = new TextNode();
-    
+
     public List<InvRule> InvRules { get; set; } = new List<InvRule>();
 }
 
@@ -29,6 +28,7 @@ public class InvRule
     public string Name { get; set; } = "";
     public string Location { get; set; } = "";
     public bool Enabled { get; set; } = false;
+    public Color Color { get; set; } = Color.Red;
 
     public InvRule(string name, string location, bool enabled)
     {
