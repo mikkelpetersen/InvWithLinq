@@ -5,6 +5,7 @@ using ExileCore.PoEMemory;
 using ExileCore.Shared.Cache;
 using Ground_Items_With_Linq;
 using ItemFilterLibrary;
+using SharpDX;
 
 namespace InvWithLinq;
 
@@ -13,7 +14,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
     public static InvWithLinq Main;
     private readonly TimeCache<List<CustomItemData>> _inventItems;
     private bool _isInTown = true;
-    public List<ItemFilter> _itemFilters;
+    public List<(ItemFilter Filter, InvRule Rule)> _itemFilters;
 
     public InvWithLinq()
     {
@@ -30,36 +31,30 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
 
     public override void AreaChange(AreaInstance area)
     {
-        if (area.IsHideout ||
-            area.IsTown ||
-            area.DisplayName.Contains("Azurite Mine") ||
-            area.DisplayName.Contains("Tane's Laboratory"))
-            _isInTown = true;
-        else
-            _isInTown = false;
+        _isInTown = area.IsHideout ||
+                    area.IsTown ||
+                    area.DisplayName.Contains("Azurite Mine") ||
+                    area.DisplayName.Contains("Tane's Laboratory");
     }
 
-    public override Job Tick()
-    {
-        return null;
-    }
+    public override Job Tick() => null;
 
     public override void Render()
     {
         var hoveredItem = GetHoveredItem();
-        if (!IsInventoryVisible())
-            return;
+        if (!IsInventoryVisible()) return;
+        if (!_isInTown && !Settings.RunOutsideTown) return;
 
-        if (!_isInTown && !Settings.RunOutsideTown)
-            return;
+        foreach (var (item, color) in GetFilteredItems())
+        {
+            var drawColor = hoveredItem != null &&
+                            hoveredItem.Tooltip.GetClientRectCache.Intersects(item.ClientRectangleCache) &&
+                            hoveredItem.Entity.Address != item.Entity.Address
+                ? color with { A = 45 }
+                : color;
 
-        foreach (var item in GetFilteredItems())
-            if (hoveredItem != null && hoveredItem.Tooltip.GetClientRectCache.Intersects(item.ClientRectangleCache) &&
-                hoveredItem.Entity.Address != item.Entity.Address)
-                Graphics.DrawFrame(item.ClientRectangleCache, Settings.FrameColor.Value with { A = 45 },
-                    Settings.FrameThickness);
-            else
-                Graphics.DrawFrame(item.ClientRectangleCache, Settings.FrameColor, Settings.FrameThickness);
+            Graphics.DrawFrame(item.ClientRectangleCache, drawColor, Settings.FrameThickness);
+        }
 
         PerformItemFilterTest(hoveredItem);
     }
@@ -67,27 +62,21 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
     public override void DrawSettings()
     {
         base.DrawSettings();
-
-
         RulesDisplay.DrawSettings();
     }
-
 
     private List<CustomItemData> GetInventoryItems()
     {
         var inventoryItems = new List<CustomItemData>();
-
         if (!IsInventoryVisible()) return inventoryItems;
 
         var inventory = GameController?.Game?.IngameState?.Data?.ServerData?.PlayerInventories[0]?.Inventory;
         var items = inventory?.InventorySlotItems;
-
         if (items == null) return inventoryItems;
 
         foreach (var item in items)
         {
             if (item.Item == null || item.Address == 0) continue;
-
             inventoryItems.Add(new CustomItemData(item.Item, GameController, item.GetClientRect()));
         }
 
@@ -101,14 +90,22 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
             : null;
     }
 
-    private bool IsInventoryVisible()
-    {
-        return GameController.IngameState.IngameUi.InventoryPanel.IsVisible;
-    }
+    private bool IsInventoryVisible() =>
+        GameController.IngameState.IngameUi.InventoryPanel.IsVisible;
 
-    private IEnumerable<CustomItemData> GetFilteredItems()
+    private IEnumerable<(CustomItemData Item, Color Color)> GetFilteredItems()
     {
-        return _inventItems.Value.Where(x => _itemFilters.Any(y => y.Matches(x)));
+        foreach (var item in _inventItems.Value)
+        {
+            foreach (var (filter, rule) in _itemFilters)
+            {
+                if (filter.Matches(item))
+                {
+                    yield return (item, rule.Color);
+                    break; // first match wins
+                }
+            }
+        }
     }
 
     private void PerformItemFilterTest(Element hoveredItem)
