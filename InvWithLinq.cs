@@ -102,7 +102,7 @@ public class InvWithLinq : BaseSettingsPlugin<InvWithLinqSettings>
                 if (filter.Matches(item))
                 {
                     yield return (item, rule.Color);
-                    break; // first match wins
+                    break;
                 }
             }
         }

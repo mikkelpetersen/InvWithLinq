@@ -35,9 +35,6 @@ public class RulesDisplay
             LoadAndApplyRules();
 
         ImGui.Separator();
-        ImGui.Text(
-            "Rule Files\nFiles are loaded in order, so easier to process (common item queries hit more often that others) rule sets should be loaded first.");
-        ImGui.Separator();
 
         if (ImGui.BeginTable("RulesTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
@@ -53,9 +50,8 @@ public class RulesDisplay
                 var rule = rules[i];
                 ImGui.TableNextRow();
 
-                // --- Drag column ---
                 ImGui.TableSetColumnIndex(0);
-                ImGui.PushID($"drag_{rule.Location}");
+                ImGui.PushID($"Drag_{rule.Location}");
 
                 var dropTargetStart = ImGui.GetCursorScreenPos();
 
@@ -69,13 +65,9 @@ public class RulesDisplay
                     ImGui.Text(rule.Name);
                     ImGui.EndDragDropSource();
                 }
-                else if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("Drag me to reorder");
-                }
 
                 ImGui.SetCursorScreenPos(dropTargetStart);
-                ImGui.InvisibleButton($"dropTarget_{rule.Location}", new Vector2(30, 20));
+                ImGui.InvisibleButton($"DropTarget_{rule.Location}", new Vector2(30, 20));
 
                 if (ImGui.BeginDragDropTarget())
                 {
@@ -93,9 +85,8 @@ public class RulesDisplay
 
                 ImGui.PopID();
 
-                // --- Toggle column ---
                 ImGui.TableSetColumnIndex(1);
-                ImGui.PushID($"toggle_{rule.Location}");
+                ImGui.PushID($"Toggle_{rule.Location}");
                 var enabled = rule.Enabled;
                 if (ImGui.Checkbox("", ref enabled))
                 {
@@ -104,12 +95,11 @@ public class RulesDisplay
                 }
                 ImGui.PopID();
 
-                // --- Color column ---
                 ImGui.TableSetColumnIndex(2);
-                ImGui.PushID($"color_{rule.Location}");
+                ImGui.PushID($"Color_{rule.Location}");
                 var c = rule.Color;
                 var vec = new Vector4(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);
-                if (ImGui.ColorEdit4("##color", ref vec,
+                if (ImGui.ColorEdit4("##Color", ref vec,
                         ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar))
                 {
                     rule.Color = new SharpDX.Color(
@@ -120,13 +110,12 @@ public class RulesDisplay
                 }
                 ImGui.PopID();
 
-                // --- File column ---
                 ImGui.TableSetColumnIndex(3);
                 ImGui.PushID(rule.Location);
 
                 var directoryPart = Path.GetDirectoryName(rule.Location)?.Replace("\\", "/") ?? "";
                 var fileName = Path.GetFileName(rule.Location);
-                var fileFullPath = Path.Combine(GetPickitConfigFileDirectory(), rule.Location);
+                var fileFullPath = Path.Combine(GetConfigFileDirectory(), rule.Location);
                 var cellWidth = ImGui.GetContentRegionAvail().X;
 
                 ImGui.InvisibleButton($"FileCell_{rule.Location}", new Vector2(cellWidth, ImGui.GetFrameHeight()));
@@ -164,7 +153,7 @@ public class RulesDisplay
                     }
                     catch (Exception ex)
                     {
-                        DebugWindow.LogError($"[DrawSettings] Failed to open file: {ex.Message}", 10);
+                        DebugWindow.LogError($"[InvWithLinq] Failed to Open File: {ex.Message}", 10);
                     }
 
                 ImGui.EndPopup();
@@ -172,22 +161,22 @@ public class RulesDisplay
         }
     }
 
-    private static string GetPickitConfigFileDirectory()
+    private static string GetConfigFileDirectory()
     {
-        var pickitConfigFileDirectory = Main.ConfigDirectory;
+        var configFileDirectory = Main.ConfigDirectory;
         if (!string.IsNullOrEmpty(Main.Settings.CustomConfigDirectory))
         {
             var customConfigFileDirectory = Path.Combine(
-                Path.GetDirectoryName(Main.ConfigDirectory),
+                Path.GetDirectoryName(Main.ConfigDirectory) ?? Main.ConfigDirectory,
                 Main.Settings.CustomConfigDirectory);
 
             if (Directory.Exists(customConfigFileDirectory))
-                pickitConfigFileDirectory = customConfigFileDirectory;
+                configFileDirectory = customConfigFileDirectory;
             else
-                DebugWindow.LogError("[Ground Items] Custom config folder does not exist.", 10);
+                DebugWindow.LogError("[InvWithLinq] Custom Config Folder Does Not Exist.", 10);
         }
 
-        return pickitConfigFileDirectory;
+        return configFileDirectory;
     }
 
     private static ItemFilter LoadItemFilterWithRetry(string rulePath)
@@ -199,48 +188,47 @@ public class RulesDisplay
             {
                 return ItemFilter.LoadFromPath(rulePath);
             }
-            catch (IOException ex)
+            catch (IOException e)
             {
                 attempt++;
                 if (attempt >= maxRetries)
-                    throw new IOException($"Failed to load file after {maxRetries} attempts: {rulePath}", ex);
+                    throw new IOException($"[InvWithLinq] Failed to Load File: {rulePath}", e);
                 Thread.Sleep(100);
             }
     }
 
     public static void LoadAndApplyRules()
     {
-        var pickitConfigFileDirectory = GetPickitConfigFileDirectory();
+        var configFileDirectory = GetConfigFileDirectory();
         var existingRules = Main.Settings.InvRules;
         try
         {
-            var diskFiles = new DirectoryInfo(pickitConfigFileDirectory)
+            var diskFiles = new DirectoryInfo(configFileDirectory)
                 .GetFiles("*.ifl", SearchOption.AllDirectories)
                 .ToList();
 
             var newRules = diskFiles
                 .Select(fileInfo => new InvRule(
                     fileInfo.Name,
-                    Path.GetRelativePath(pickitConfigFileDirectory, fileInfo.FullName),
+                    Path.GetRelativePath(configFileDirectory, fileInfo.FullName),
                     false))
                 .ExceptBy(existingRules.Select(rule => rule.Location), groundRule => groundRule.Location)
                 .ToList();
 
             foreach (var groundRule in existingRules)
             {
-                var fullPath = Path.Combine(pickitConfigFileDirectory, groundRule.Location);
+                var fullPath = Path.Combine(configFileDirectory, groundRule.Location);
                 if (File.Exists(fullPath))
                     newRules.Add(groundRule);
                 else
-                    DebugWindow.LogError($"[LoadAndApplyRules] File '{groundRule.Name}' not found.", 10);
+                    DebugWindow.LogError($"[InvWithLinq] File '{groundRule.Name}' Not Found.", 10);
             }
 
-            // Store filter+rule pairs so Render can access each rule's color
             Main._itemFilters = newRules
                 .Where(rule => rule.Enabled)
                 .Select(rule =>
                 {
-                    var rulePath = Path.Combine(pickitConfigFileDirectory, rule.Location);
+                    var rulePath = Path.Combine(configFileDirectory, rule.Location);
                     return (LoadItemFilterWithRetry(rulePath), rule);
                 })
                 .ToList();
@@ -249,7 +237,7 @@ public class RulesDisplay
         }
         catch (Exception e)
         {
-            DebugWindow.LogError($"[LoadAndApplyRules] An error occurred while loading rule files: {e.Message}", 10);
+            DebugWindow.LogError($"[InvWithLinq] Error: {e.Message}", 10);
         }
     }
 }
